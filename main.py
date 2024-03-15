@@ -1,68 +1,65 @@
-from os import remove
-import os
 from PIL import Image
+import boto3
+from io import BytesIO
+
+s3 = boto3.client('s3')
+bucket_name = 'normalsizeimages'
 
 
 def png_to_jpg():
-    try:
-        os.mkdir('Normal_Size_Images')
-    except FileExistsError:
-        print('Folder already exists')
+    response = s3.list_objects_v2(Bucket=bucket_name)
 
-    path = ('/home/ecmge/documentos/AWS_Test/'
-            'Normal_Size_Images/')
+    if 'Contents' in response:
+        for obj in response['Contents']:
+            key = obj['Key']
+            if key.endswith('.png'):
+                response = s3.get_object(Bucket=bucket_name, Key=key)
+                image_data = response['Body'].read()
 
-    listnames = []
-    listdir = os.walk(path)
+                img = Image.open(BytesIO(image_data))
+                if img.mode == 'RGBA':
+                    img = img.convert('RGB')
+                output = BytesIO()
+                img.save(output, format='JPEG')
 
-    print("...Changing Images to jpg...")
-    for root, dirs, files in listdir:
-        for file in files:
-            (fileName, extension) = os.path.splitext(file)
-            if (extension == ".png"):
-                listnames.append(fileName)
-
-    if (len(listnames) == 0):
-        print("No images to change")
-    else:
-        for i in listnames:
-            im = Image.open('Normal_Size_Images/{}.png'.format(i))
-            rgb_im = im.convert('RGB')
-            rgb_im.save('Normal_Size_Images/{}.jpg'.format(i), quality=95)
-            remove('Normal_Size_Images/{}.png'.format(i))
-    print("...Finishing Changing Images...")
+                new_key = key[:-4] + '.jpeg'
+                s3.put_object(Bucket=bucket_name, Key=new_key,
+                              Body=output.getvalue())
+                s3.delete_object(Bucket=bucket_name, Key=key)
 
 
 def changing_names():
-
-    path = ('/home/ecmge/documentos/AWS_Test/'
-            'Normal_Size_Images/')
-    listdir = os.walk(path)
+    response = s3.list_objects_v2(Bucket=bucket_name)
     a = 1
-    for root, dirs, files in listdir:
-        for file in files:
-            os.rename('{}{}'.format(path, file),
-                      '{}image-{}.jpg'.format(path, a))
+
+    if 'Contents' in response:
+        for obj in response['Contents']:
+            key = obj['Key']
+            new_key = 'image-{}.jpeg'.format(a)
+            s3.copy_object(Bucket=bucket_name, Key=new_key,
+                           CopySource={'Bucket': bucket_name, 'Key': key})
+            s3.delete_object(Bucket=bucket_name, Key=key)
             a += 1
 
 
 def re_size():
-    try:
-        os.mkdir('Thumbnail_Size')
-    except FileExistsError:
-        print('Folder already exists')
+    bucket_name_2 = 'thumbnailsize'
 
-    path = ('/home/ecmge/documentos/AWS_Test/'
-            'Normal_Size_Images/')
-    images = os.listdir(path)
+    response = s3.list_objects_v2(Bucket=bucket_name)
 
-    print("Starting Image Resize")
-    for i in range(len(images)):
-        img = Image.open('{}image-{}.jpg'.format(path, i+1))
-        small_img = img.resize((1280, 720))
-        small_img.save('Thumbnail_Size/image-{}.jpg'.format(i+1))
+    if 'Contents' in response:
+        for obj in response['Contents']:
+            key = obj['Key']
+            if key.endswith('.jpeg'):
+                response = s3.get_object(Bucket=bucket_name, Key=key)
+                image_data = response['Body'].read()
 
-    print("All images resized")
+                img = Image.open(BytesIO(image_data))
+                resized_img = img.resize((1280, 720))
+                output = BytesIO()
+                resized_img.save(output, format='JPEG')
+                output.seek(0)
+                s3.put_object(Bucket=bucket_name_2, Key=key, Body=output)
 
 
 png_to_jpg()
