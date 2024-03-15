@@ -61,7 +61,7 @@ def re_size():
                 output.seek(0)
                 s3.put_object(Bucket=bucket_name_2, Key=key, Body=output)
 
-
-png_to_jpg()
-changing_names()
-re_size()
+def lambda_handler(event, context):
+    png_to_jpg()
+    changing_names()
+    re_size()
