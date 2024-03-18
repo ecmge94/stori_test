@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: App for update images with a new size.
+Resources:
+  storitest:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://venvecm/stori_test-main.zip
+      Description: ''
+      MemorySize: 128
+      Timeout: 300
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.10
+      Architectures:
+        - x86_64
+      EphemeralStorage:
+        Size: 512
+      EventInvokeConfig:
+        MaximumEventAgeInSeconds: 21600
+        MaximumRetryAttempts: 2
+      PackageType: Zip
+      Policies:
+        - Statement:
+            - Sid: VisualEditor0
+              Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:ListBucket
+                - s3:DeleteObject
+                - s3:GetBucketCORS
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+              Resource: arn:aws:logs:us-east-2:767397666865:*
+            - Effect: Allow
+              Action:
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource:
+                - arn:aws:logs:us-east-2:767397666865:log-group:/aws/lambda/stori_test:*
+      SnapStart:
+        ApplyOn: None
+      Events:
+        BucketEvent1:
+          Type: S3
+          Properties:
+            Bucket: !Ref NormalSizeImagesBucket
+            Events:
+              - s3:ObjectCreated:*
+      RuntimeManagementConfig:
+        UpdateRuntimeOn: Auto
+
+  NormalSizeImagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: normalsizeimages
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  ThumbnailSizeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: thumbnailsize
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  BucketPolicy1:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref NormalSizeImagesBucket
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Effect: Deny
+            Principal: '*'
+            Resource:
+              - !Sub arn:aws:s3:::${NormalSizeImagesBucket}/*
+              - !Sub arn:aws:s3:::${NormalSizeImagesBucket}
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+

@@ -2,8 +2,11 @@ from PIL import Image
 import boto3
 from io import BytesIO
 
+# Creatin an instance for the bucket used
 s3 = boto3.client('s3')
 bucket_name = 'normalsizeimages'
+
+# Changing the extensions for the png files.
 
 
 def png_to_jpg():
@@ -28,6 +31,7 @@ def png_to_jpg():
                 s3.delete_object(Bucket=bucket_name, Key=key)
 
 
+# Changing the names for the files.
 def changing_names():
     response = s3.list_objects_v2(Bucket=bucket_name)
     a = 1
@@ -42,6 +46,7 @@ def changing_names():
             a += 1
 
 
+# Changin the size of the file to a thumbnail size.
 def re_size():
     bucket_name_2 = 'thumbnailsize'
 
@@ -60,6 +65,9 @@ def re_size():
                 resized_img.save(output, format='JPEG')
                 output.seek(0)
                 s3.put_object(Bucket=bucket_name_2, Key=key, Body=output)
+
+# Executing the files of the lambda.
+
 
 def lambda_handler(event, context):
     png_to_jpg()
